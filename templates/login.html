@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="glass-card">
+    <div class="logo">
+        <i class="fas fa-user-circle"></i>
+        <h2>Login</h2>
+    </div>
+
+    <form id="loginForm">
+        <div class="mb-3">
+            <input type="text" class="form-control" id="username" placeholder="Username" required>
+        </div>
+        <div class="mb-3">
+            <input type="password" class="form-control" id="password" placeholder="Password" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Login</button>
+    </form>
+
+    <div class="links">
+        <p>Don't have an account? <a href="/register">Register here</a></p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Check if user is already logged in
+        if (localStorage.getItem('accessToken')) {
+            window.location.href = '/notes';
+        }
+
+        $('#loginForm').on('submit', function(e) {
+            e.preventDefault();
+
+            const username = $('#username').val();
+            const password = $('#password').val();
+
+            $.ajax({
+                url: '/api/auth/login/',
+                type: 'POST',
+                data: {
+                    username: username,
+                    password: password
+                },
+                success: function(response) {
+                    // Store tokens and user data
+                    localStorage.setItem('accessToken', response.tokens.access);
+                    localStorage.setItem('refreshToken', response.tokens.refresh);
+                    localStorage.setItem('user', JSON.stringify(response.user));
+
+                    showToast('Login successful!', 'success');
+
+                    // Redirect to notes page after a short delay
+                    setTimeout(function() {
+                        window.location.href = '/notes';
+                    }, 1500);
+                },
+                error: function(xhr) {
+                    const error = xhr.responseJSON ?
+                        (xhr.responseJSON.error || 'Invalid credentials') :
+                        'Login failed. Please try again.';
+                    showToast(error, 'error');
+                }
+            });
+        });
+    });
+
+    function showToast(message, type = 'info') {
+        const toast = $(`
+            <div class="toast custom-toast align-items-center text-white bg-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info'} border-0" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        `);
+
+        $('.toast-container').append(toast);
+        const bsToast = new bootstrap.Toast(toast);
+        bsToast.show();
+
+        // Remove toast after it hides
+        toast.on('hidden.bs.toast', function() {
+            toast.remove();
+        });
+    }
+</script>
+{% endblock %}

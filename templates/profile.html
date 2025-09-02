@@ -1,0 +1,245 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="glass-card">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2>User Profile</h2>
+                    <a href="/notes" class="btn btn-outline-light">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Notes
+                    </a>
+                </div>
+
+                <form id="profileForm">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Username</label>
+                            <input type="text" class="form-control" id="username" readonly>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" readonly>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Full Name</label>
+                        <input type="text" class="form-control" id="fullName">
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Date of Birth</label>
+                            <input type="date" class="form-control" id="dateOfBirth">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Gender</label>
+                            <select class="form-control" id="gender" style="color: #000; background: #fff;">
+                                <option value="">Select Gender</option>
+                                <option value="M">Male</option>
+                                <option value="F">Female</option>
+                                <option value="O">Other</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Mobile Number</label>
+                        <input type="tel" class="form-control" id="mobileNumber">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Address</label>
+                        <textarea class="form-control" id="address" rows="3"></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">Update Profile</button>
+                </form>
+
+                <hr class="my-4">
+
+                <h4 class="mb-3">Change Password</h4>
+                <form id="passwordForm">
+                    <div class="mb-3">
+                        <label class="form-label">Current Password *</label>
+                        <input type="password" class="form-control" id="currentPassword" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">New Password *</label>
+                        <input type="password" class="form-control" id="newPassword" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Confirm New Password *</label>
+                        <input type="password" class="form-control" id="confirmPassword" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">Change Password</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Check if user is logged in
+        const accessToken = localStorage.getItem('accessToken');
+        const userData = JSON.parse(localStorage.getItem('user') || '{}');
+
+        if (!accessToken) {
+            window.location.href = '/';
+            return;
+        }
+
+        // Load profile data
+        loadProfile();
+
+        // Update profile
+        $('#profileForm').on('submit', function(e) {
+            e.preventDefault();
+
+            const profileData = {
+                full_name: $('#fullName').val(),
+                date_of_birth: $('#dateOfBirth').val() || null,
+                gender: $('#gender').val() || null,
+                mobile_number: $('#mobileNumber').val() || null,
+                address: $('#address').val() || null
+            };
+
+            $.ajax({
+                url: '/api/auth/profile/',
+                type: 'PUT',
+                headers: {
+                    'Authorization': 'Bearer ' + accessToken,
+                    'Content-Type': 'application/json'
+                },
+                data: JSON.stringify(profileData),
+                success: function(response) {
+                    showToast('Profile updated successfully', 'success');
+                },
+                error: function(xhr) {
+                    const errors = xhr.responseJSON;
+                    let errorMsg = 'Failed to update profile';
+
+                    if (errors) {
+                        if (typeof errors === 'object') {
+                            errorMsg = Object.values(errors)[0][0];
+                        }
+                    }
+
+                    showToast(errorMsg, 'error');
+                }
+            });
+        });
+
+        // Change password
+        $('#passwordForm').on('submit', function(e) {
+            e.preventDefault();
+
+            const currentPassword = $('#currentPassword').val();
+            const newPassword = $('#newPassword').val();
+            const confirmPassword = $('#confirmPassword').val();
+
+            if (newPassword !== confirmPassword) {
+                showToast('New passwords do not match', 'error');
+                return;
+            }
+
+            if (newPassword.length < 8) {
+                showToast('New password must be at least 8 characters long', 'error');
+                return;
+            }
+
+            $.ajax({
+                url: '/api/auth/change-password/',
+                type: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + accessToken,
+                    'Content-Type': 'application/json'
+                },
+                data: JSON.stringify({
+                    old_password: currentPassword,
+                    new_password: newPassword
+                }),
+                success: function(response) {
+                    $('#passwordForm')[0].reset();
+                    showToast('Password changed successfully', 'success');
+                },
+                error: function(xhr) {
+                    const errors = xhr.responseJSON;
+                    let errorMsg = 'Failed to change password';
+
+                    if (errors) {
+                        if (errors.old_password) errorMsg = errors.old_password[0];
+                        else if (errors.new_password) errorMsg = errors.new_password[0];
+                        else if (typeof errors === 'object') {
+                            errorMsg = Object.values(errors)[0][0];
+                        }
+                    }
+
+                    showToast(errorMsg, 'error');
+                }
+            });
+        });
+
+        function loadProfile() {
+            $.ajax({
+                url: '/api/auth/profile/',
+                type: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + accessToken
+                },
+                success: function(response) {
+                    $('#username').val(response.username);
+                    $('#email').val(response.email);
+                    $('#fullName').val(response.full_name || '');
+                    $('#dateOfBirth').val(response.date_of_birth || '');
+                    $('#gender').val(response.gender || '');
+                    $('#mobileNumber').val(response.mobile_number || '');
+                    $('#address').val(response.address || '');
+                },
+                error: function(xhr) {
+                    if (xhr.status === 401) {
+                        // Token expired, redirect to login
+                        localStorage.removeItem('accessToken');
+                        localStorage.removeItem('refreshToken');
+                        localStorage.removeItem('user');
+                        window.location.href = '/';
+                    } else {
+                        showToast('Failed to load profile', 'error');
+                    }
+                }
+            });
+        }
+    });
+
+    function showToast(message, type = 'info') {
+        const toast = $(`
+            <div class="toast custom-toast align-items-center text-white bg-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info'} border-0" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'} me-2"></i>
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        `);
+
+        $('.toast-container').append(toast);
+        const bsToast = new bootstrap.Toast(toast);
+        bsToast.show();
+
+        // Remove toast after it hides
+        toast.on('hidden.bs.toast', function() {
+            toast.remove();
+        });
+    }
+</script>
+{% endblock %}

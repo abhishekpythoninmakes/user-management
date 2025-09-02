@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="glass-card">
+                <div class="logo">
+                    <i class="fas fa-user-plus"></i>
+                    <h2>Create Account</h2>
+                </div>
+
+                <form id="registerForm">
+                    <div class="mb-3">
+                        <input type="text" class="form-control" id="username" placeholder="Username" required>
+                        <div class="validation-message" id="usernameValidation"></div>
+                    </div>
+                    <div class="mb-3">
+                        <input type="email" class="form-control" id="email" placeholder="Email" required>
+                        <div class="validation-message" id="emailValidation"></div>
+                    </div>
+                    <div class="mb-3">
+                        <input type="password" class="form-control" id="password" placeholder="Password" required>
+                    </div>
+                    <div class="mb-3">
+                        <input type="password" class="form-control" id="password2" placeholder="Confirm Password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Register</button>
+                </form>
+
+                <div class="text-center mt-3">
+                    <p>Already have an account? <a href="/" class="text-light">Login here</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Check if user is already logged in
+        if (localStorage.getItem('accessToken')) {
+            window.location.href = '/notes';
+        }
+
+        // Debounce function
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Check username availability
+        $('#username').on('input', debounce(function() {
+            const username = $(this).val();
+            const validationEl = $('#usernameValidation');
+
+            if (username.length < 3) {
+                validationEl.removeClass('valid invalid').text('');
+                return;
+            }
+
+            $.ajax({
+                url: '/api/auth/check-username/',
+                type: 'GET',
+                data: { username: username },
+                success: function(response) {
+                    if (response.exists) {
+                        validationEl.removeClass('valid').addClass('invalid').text('Username already taken');
+                    } else {
+                        validationEl.removeClass('invalid').addClass('valid').text('Username available');
+                    }
+                },
+                error: function() {
+                    validationEl.removeClass('valid invalid').text('');
+                }
+            });
+        }, 500));
+
+        // Check email availability
+        $('#email').on('input', debounce(function() {
+            const email = $(this).val();
+            const validationEl = $('#emailValidation');
+
+            if (!isValidEmail(email)) {
+                validationEl.removeClass('valid invalid').text('');
+                return;
+            }
+
+            $.ajax({
+                url: '/api/auth/check-email/',
+                type: 'GET',
+                data: { email: email },
+                success: function(response) {
+                    if (response.exists) {
+                        validationEl.removeClass('valid').addClass('invalid').text('Email already registered');
+                    } else {
+                        validationEl.removeClass('invalid').addClass('valid').text('Email available');
+                    }
+                },
+                error: function() {
+                    validationEl.removeClass('valid invalid').text('');
+                }
+            });
+        }, 500));
+
+        function isValidEmail(email) {
+            const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return re.test(email);
+        }
+
+        $('#registerForm').on('submit', function(e) {
+            e.preventDefault();
+
+            const username = $('#username').val();
+            const email = $('#email').val();
+            const password = $('#password').val();
+            const password2 = $('#password2').val();
+
+            if (password !== password2) {
+                showToast('Passwords do not match', 'error');
+                return;
+            }
+
+            $.ajax({
+                url: '/api/auth/register/',
+                type: 'POST',
+                data: {
+                    username: username,
+                    email: email,
+                    password: password,
+                    password2: password2
+                },
+                success: function(response) {
+                    // Store tokens and user data
+                    localStorage.setItem('accessToken', response.tokens.access);
+                    localStorage.setItem('refreshToken', response.tokens.refresh);
+                    localStorage.setItem('user', JSON.stringify(response.user));
+
+                    showToast('Registration successful!', 'success');
+
+                    // Redirect to notes page after a short delay
+                    setTimeout(function() {
+                        window.location.href = '/notes';
+                    }, 1500);
+                },
+                error: function(xhr) {
+                    const errors = xhr.responseJSON;
+                    let errorMsg = 'Registration failed. Please try again.';
+
+                    if (errors) {
+                        if (errors.username) errorMsg = errors.username[0];
+                        else if (errors.email) errorMsg = errors.email[0];
+                        else if (errors.password) errorMsg = errors.password[0];
+                        else if (errors.error) errorMsg = errors.error;
+                        else if (typeof errors === 'object') {
+                            errorMsg = Object.values(errors)[0][0];
+                        }
+                    }
+
+                    showToast(errorMsg, 'error');
+                }
+            });
+        });
+    });
+
+    function showToast(message, type = 'info') {
+        const toast = $(`
+            <div class="toast custom-toast align-items-center text-white bg-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info'} border-0" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'} me-2"></i>
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        `);
+
+        $('.toast-container').append(toast);
+        const bsToast = new bootstrap.Toast(toast);
+        bsToast.show();
+
+        // Remove toast after it hides
+        toast.on('hidden.bs.toast', function() {
+            toast.remove();
+        });
+    }
+</script>
+{% endblock %}
