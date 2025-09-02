@@ -1,3 +1,8 @@
+### Please find below the details of the hosted test machine and related resources:
+
+## Hosted Application: https://glinfotech.pythonanywhere.com/
+
+## Admin Panel: https://glinfotech.pythonanywhere.com/admin/
 
 # User Management and Notes System
 
@@ -202,4 +207,5 @@ You will be redirected to your personal notes dashboard.
 ---
 
 This project is built with scalability and clean architecture in mind, making it suitable for learning, customization, or integration into larger systems.
+
 
