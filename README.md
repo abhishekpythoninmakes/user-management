@@ -1,6 +1,3 @@
-Here's a clean, professional, and well-structured version of your README using proper Markdown formatting with hash headers, clear sections, and organized content — ideal for a GitHub repository. No emojis or icons are used, and all commands and explanations are polished for clarity and readability.
-
----
 
 # User Management and Notes System
 
@@ -205,3 +202,4 @@ You will be redirected to your personal notes dashboard.
 ---
 
 This project is built with scalability and clean architecture in mind, making it suitable for learning, customization, or integration into larger systems.
+
